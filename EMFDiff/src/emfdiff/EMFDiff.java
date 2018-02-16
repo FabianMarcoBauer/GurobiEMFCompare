@@ -40,13 +40,13 @@ public class EMFDiff {
 
 		ResourceSet rs = new ResourceSetImpl();
 		Resource r1 = rs.getResource(URI.createFileURI(new File("instances/UML.xmi").getAbsolutePath()), true);
-		Resource r2 = rs.getResource(URI.createFileURI(new File("instances/UML2.xmi").getAbsolutePath()), true);
+		Resource r2 = rs.getResource(URI.createFileURI(new File("instances/UML.xmi").getAbsolutePath()), true);
 
 		EObject o = r1.getContents().get(0);
 		EObject o2 = r2.getContents().get(0);
 
-		new EMFDiff(o, o2).createGurobiModel().optimize();
-
+		List<Object> selectedMappings = new EMFDiff(o, o2).createGurobiModel().optimize().getSelectedMappings();
+		selectedMappings.stream().map(NameUtil::getNameString).sorted().forEach(System.out::println);
 	}
 
 	private EObject aRoot;
@@ -66,7 +66,7 @@ public class EMFDiff {
 		this.bRoot = bRoot;
 	}
 
-	public GRBModel createGurobiModel() throws GRBException {
+	public GurobiMappedModel createGurobiModel() throws GRBException {
 		extractElements();
 		System.out.println(aObjects);
 		System.out.println(aEdges);
@@ -74,6 +74,9 @@ public class EMFDiff {
 		Map<EObject, List<GRBVar>> BOtoVars = new HashMap<>();
 		Map<EEdge, List<GRBVar>> BEtoVars = new HashMap<>();
 		Map<EObject, Map<EObject, GRBVar>> ABtoVar = new HashMap<>();
+
+		Map<GRBVar, GurobiVariableMapping<EObject>> objectVars = new HashMap<>();
+		Map<GRBVar, GurobiVariableMapping<EEdge>> edgeVars = new HashMap<>();
 
 		int varCounter = 0;
 		int constrCounter = 0;
@@ -102,22 +105,23 @@ public class EMFDiff {
 
 					GRBVar var = model.addVar(0.0, 1.0, 0.0, GRB.BINARY, "obj" + ++varCounter);
 					aVars.put(bObj, var);
-					BOtoVars.computeIfAbsent(bObj, e->new ArrayList<>()).add(var);
-					
+					BOtoVars.computeIfAbsent(bObj, e -> new ArrayList<>()).add(var);
+
 					objective.addTerm(weight, var);
 					expr.addTerm(1, var);
+					objectVars.put(var, new GurobiVariableMapping<EObject>(var, aObj, bObj));
 				}
 				model.addConstr(expr, GRB.LESS_EQUAL, 1.0, "varMap" + ++constrCounter);
 			}
 		}
 		for (List<GRBVar> vars : BOtoVars.values()) {
 			GRBLinExpr expr = new GRBLinExpr();
-			for (GRBVar var:vars) {
+			for (GRBVar var : vars) {
 				expr.addTerm(1, var);
 			}
 			model.addConstr(expr, GRB.LESS_EQUAL, 1.0, "varMapB" + ++constrCounter);
 		}
-		
+
 		for (Entry<EStructuralFeature, List<EEdge>> es : aEdges.entrySet()) {
 			List<EEdge> bEdgs = bEdges.get(es.getKey());
 			if (bEdgs == null)
@@ -132,16 +136,17 @@ public class EMFDiff {
 						continue;
 
 					GRBVar var = model.addVar(0.0, 1.0, 0.0, GRB.BINARY, "edge" + ++varCounter);
-					BEtoVars.computeIfAbsent(bEdge, e->new ArrayList<>()).add(var);
-					
+					BEtoVars.computeIfAbsent(bEdge, e -> new ArrayList<>()).add(var);
+
 					objective.addTerm(1, var);
 					expr.addTerm(1, var);
+					edgeVars.put(var, new GurobiVariableMapping<EEdge>(var, aEdge, bEdge));
 
 					GRBLinExpr implExprA = new GRBLinExpr();
 					implExprA.addTerm(1, var);
 					implExprA.addTerm(-1, ABtoVar.get(aEdge.source).get(bEdge.source));
 					model.addConstr(implExprA, GRB.LESS_EQUAL, 0.0, "implS" + ++constrCounter);
-					
+
 					GRBLinExpr implExprB = new GRBLinExpr();
 					implExprB.addTerm(1, var);
 					implExprB.addTerm(-1, ABtoVar.get(aEdge.target).get(bEdge.target));
@@ -152,7 +157,7 @@ public class EMFDiff {
 		}
 		for (List<GRBVar> vars : BEtoVars.values()) {
 			GRBLinExpr expr = new GRBLinExpr();
-			for (GRBVar var:vars) {
+			for (GRBVar var : vars) {
 				expr.addTerm(1, var);
 			}
 			model.addConstr(expr, GRB.LESS_EQUAL, 1.0, "edgeMapB" + ++constrCounter);
@@ -160,7 +165,7 @@ public class EMFDiff {
 
 		model.setObjective(objective, GRB.MAXIMIZE);
 
-		return model;
+		return new GurobiMappedModel(model, objectVars, edgeVars);
 	}
 
 	private synchronized void extractElements() {
