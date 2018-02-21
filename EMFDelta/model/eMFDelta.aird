@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmi:XMI xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:description="http://www.eclipse.org/sirius/description/1.1.0" xmlns:description_1="http://www.eclipse.org/sirius/diagram/description/1.1.0" xmlns:diagram="http://www.eclipse.org/sirius/diagram/1.1.0" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:notation="http://www.eclipse.org/gmf/runtime/1.0.2/notation" xmlns:style="http://www.eclipse.org/sirius/diagram/description/style/1.1.0" xmlns:viewpoint="http://www.eclipse.org/sirius/1.1.0" xsi:schemaLocation="http://www.eclipse.org/sirius/description/1.1.0 http://www.eclipse.org/sirius/1.1.0#//description http://www.eclipse.org/sirius/diagram/description/1.1.0 http://www.eclipse.org/sirius/diagram/1.1.0#//description http://www.eclipse.org/sirius/diagram/description/style/1.1.0 http://www.eclipse.org/sirius/diagram/1.1.0#//description/style">
+  <viewpoint:DAnalysis xmi:id="_WDscwBaUEeiSDK-OTnt3IA" selectedViews="_XB5xcBaUEeiSDK-OTnt3IA" version="11.1.0.201608251200">
+    <semanticResources>eMFDelta.ecore</semanticResources>
+    <semanticResources>eMFDelta.genmodel</semanticResources>
+    <semanticResources>platform:/resource/org.eclipse.emf.ecore/model/Ecore.ecore</semanticResources>
+    <semanticResources>../plugin.xml</semanticResources>
+    <ownedViews xmi:type="viewpoint:DView" xmi:id="_XB5xcBaUEeiSDK-OTnt3IA">
+      <viewpoint xmi:type="description:Viewpoint" href="platform:/plugin/org.eclipse.emf.ecoretools.design/description/ecore.odesign#//@ownedViewpoints[name='Design']"/>
+      <ownedRepresentationDescriptors xmi:type="viewpoint:DRepresentationDescriptor" xmi:id="_XFWHABaUEeiSDK-OTnt3IA" name="eMFDelta" representation="_XFWHARaUEeiSDK-OTnt3IA">
+        <description xmi:type="description_1:DiagramDescription" href="platform:/plugin/org.eclipse.emf.ecoretools.design/description/ecore.odesign#//@ownedViewpoints[name='Design']/@ownedRepresentations[name='Entities']"/>
+        <target xmi:type="ecore:EPackage" href="eMFDelta.ecore#/"/>
+      </ownedRepresentationDescriptors>
+    </ownedViews>
+  </viewpoint:DAnalysis>
+  <diagram:DSemanticDiagram xmi:id="_XFWHARaUEeiSDK-OTnt3IA" name="eMFDelta">
+    <ownedAnnotationEntries xmi:type="description:AnnotationEntry" xmi:id="_XFWuEBaUEeiSDK-OTnt3IA" source="DANNOTATION_CUSTOMIZATION_KEY">
+      <data xmi:type="diagram:ComputedStyleDescriptionRegistry" xmi:id="_XFWuERaUEeiSDK-OTnt3IA"/>
+    </ownedAnnotationEntries>
+    <ownedAnnotationEntries xmi:type="description:AnnotationEntry" xmi:id="_XGNpsBaUEeiSDK-OTnt3IA" source="GMF_DIAGRAMS">
+      <data xmi:type="notation:Diagram" xmi:id="_XGNpsRaUEeiSDK-OTnt3IA" type="Sirius" element="_XFWHARaUEeiSDK-OTnt3IA" measurementUnit="Pixel">
+        <children xmi:type="notation:Node" xmi:id="_WRa6QBaVEeiSDK-OTnt3IA" type="2001" element="_WRGxMBaVEeiSDK-OTnt3IA">
+          <children xmi:type="notation:Node" xmi:id="_WRdWgBaVEeiSDK-OTnt3IA" type="5002">
+            <layoutConstraint xmi:type="notation:Location" xmi:id="_WRdWgRaVEeiSDK-OTnt3IA" y="5"/>
+          </children>
+          <children xmi:type="notation:Node" xmi:id="_WUmKEBaVEeiSDK-OTnt3IA" type="3005" element="_WRUzoBaVEeiSDK-OTnt3IA">
+            <styles xmi:type="notation:ShapeStyle" xmi:id="_WUmKERaVEeiSDK-OTnt3IA" fontName="Segoe UI"/>
+            <layoutConstraint xmi:type="notation:Bounds" xmi:id="_WUmKEhaVEeiSDK-OTnt3IA"/>
+          </children>
+          <styles xmi:type="notation:ShapeStyle" xmi:id="_WRa6QRaVEeiSDK-OTnt3IA" fontName="Segoe UI" fontHeight="8"/>
+          <layoutConstraint xmi:type="notation:Bounds" xmi:id="_WRbhUBaVEeiSDK-OTnt3IA" width="500" height="90"/>
+        </children>
+        <styles xmi:type="notation:DiagramStyle" xmi:id="_XGNpshaUEeiSDK-OTnt3IA"/>
+      </data>
+    </ownedAnnotationEntries>
+    <ownedDiagramElements xmi:type="diagram:DNode" xmi:id="_WRGxMBaVEeiSDK-OTnt3IA" width="-1" height="-1">
+      <target xmi:type="ecore:EPackage" href="eMFDelta.ecore#/"/>
+      <semanticElements xmi:type="ecore:EPackage" href="eMFDelta.ecore#/"/>
+      <ownedStyle xmi:type="diagram:WorkspaceImage" xmi:id="_WRUzoBaVEeiSDK-OTnt3IA" showIcon="false" labelPosition="node" workspacePath="/org.eclipse.emf.ecoretools.design/icons/full/back/empty.svg">
+        <description xmi:type="style:WorkspaceImageDescription" href="platform:/plugin/org.eclipse.emf.ecoretools.design/description/ecore.odesign#//@ownedViewpoints[name='Design']/@ownedRepresentations[name='Entities']/@defaultLayer/@nodeMappings[name='Empty%20Diagram']/@style"/>
+      </ownedStyle>
+      <actualMapping xmi:type="description_1:NodeMapping" href="platform:/plugin/org.eclipse.emf.ecoretools.design/description/ecore.odesign#//@ownedViewpoints[name='Design']/@ownedRepresentations[name='Entities']/@defaultLayer/@nodeMappings[name='Empty%20Diagram']"/>
+    </ownedDiagramElements>
+    <description xmi:type="description_1:DiagramDescription" href="platform:/plugin/org.eclipse.emf.ecoretools.design/description/ecore.odesign#//@ownedViewpoints[name='Design']/@ownedRepresentations[name='Entities']"/>
+    <filterVariableHistory xmi:type="diagram:FilterVariableHistory" xmi:id="_XFWuEhaUEeiSDK-OTnt3IA"/>
+    <activatedLayers xmi:type="description_1:Layer" href="platform:/plugin/org.eclipse.emf.ecoretools.design/description/ecore.odesign#//@ownedViewpoints[name='Design']/@ownedRepresentations[name='Entities']/@defaultLayer"/>
+    <activatedLayers xmi:type="description_1:AdditionalLayer" href="platform:/plugin/org.eclipse.emf.ecoretools.design/description/ecore.odesign#//@ownedViewpoints[name='Design']/@ownedRepresentations[name='Entities']/@additionalLayers[name='Package']"/>
+    <activatedLayers xmi:type="description_1:AdditionalLayer" href="platform:/plugin/org.eclipse.emf.ecoretools.design/description/ecore.odesign#//@ownedViewpoints[name='Design']/@ownedRepresentations[name='Entities']/@additionalLayers[name='Validation']"/>
+    <target xmi:type="ecore:EPackage" href="eMFDelta.ecore#/"/>
+  </diagram:DSemanticDiagram>
+</xmi:XMI>

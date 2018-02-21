@@ -1,12 +1,16 @@
 package emfdiff;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.eclipse.emf.common.util.EList;
@@ -23,6 +27,9 @@ import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.eclipse.uml2.uml.UMLPackage;
 
+import eMFDelta.Delta;
+import eMFDelta.EAttributeEdge;
+import eMFDelta.EMFDeltaFactory;
 import gurobi.GRB;
 import gurobi.GRBEnv;
 import gurobi.GRBException;
@@ -32,7 +39,7 @@ import gurobi.GRBVar;
 
 public class EMFDiff {
 
-	public static void main(String[] args) throws GRBException {
+	public static void main(String[] args) throws GRBException, IOException {
 		Resource.Factory.Registry reg = Resource.Factory.Registry.INSTANCE;
 		Map<String, Object> m = reg.getExtensionToFactoryMap();
 		m.put("xmi", new XMIResourceFactoryImpl());
@@ -40,13 +47,21 @@ public class EMFDiff {
 
 		ResourceSet rs = new ResourceSetImpl();
 		Resource r1 = rs.getResource(URI.createFileURI(new File("instances/UML.xmi").getAbsolutePath()), true);
-		Resource r2 = rs.getResource(URI.createFileURI(new File("instances/UML.xmi").getAbsolutePath()), true);
+		Resource r2 = rs.getResource(URI.createFileURI(new File("instances/UML2.xmi").getAbsolutePath()), true);
 
 		EObject o = r1.getContents().get(0);
 		EObject o2 = r2.getContents().get(0);
 
-		List<Object> selectedMappings = new EMFDiff(o, o2).createGurobiModel().optimize().getSelectedMappings();
+		EMFDiff emfDiff = new EMFDiff(o, o2);
+		GurobiMappedModel optimizedModel = emfDiff.createGurobiModel().optimize();
+		List<Object> selectedMappings = optimizedModel.getSelectedMappings();
 		selectedMappings.stream().map(NameUtil::getNameString).sorted().forEach(System.out::println);
+
+		Resource d1 = rs.createResource(URI.createFileURI(new File("instances/delta1.xmi").getAbsolutePath()));
+		Resource d2 = rs.createResource(URI.createFileURI(new File("instances/delta2.xmi").getAbsolutePath()));
+		emfDiff.generateDeltas(d1, d2);
+		d1.save(null);
+		d2.save(null);
 	}
 
 	private EObject aRoot;
@@ -60,6 +75,7 @@ public class EMFDiff {
 
 	private Map<EStructuralFeature, List<EEdge>> aEdges = new HashMap<>();
 	private Map<EStructuralFeature, List<EEdge>> bEdges = new HashMap<>();
+	private GurobiMappedModel gurobiMappedModel;
 
 	public EMFDiff(EObject aRoot, EObject bRoot) {
 		this.aRoot = aRoot;
@@ -165,7 +181,73 @@ public class EMFDiff {
 
 		model.setObjective(objective, GRB.MAXIMIZE);
 
-		return new GurobiMappedModel(model, objectVars, edgeVars);
+		gurobiMappedModel = new GurobiMappedModel(model, objectVars, edgeVars);
+		return gurobiMappedModel;
+	}
+
+	public void generateDeltas(Resource aPath, Resource bPath) {
+		Set<EObject> unselectedAObjects = aObjects.values().stream().flatMap(List::stream)
+				.collect(Collectors.toCollection(HashSet::new));
+		Set<EObject> unselectedBObjects = bObjects.values().stream().flatMap(List::stream)
+				.collect(Collectors.toCollection(HashSet::new));
+
+		List<EAttributeEdge> mismatchedAAttributes = new ArrayList<>();
+		List<EAttributeEdge> mismatchedBAttributes = new ArrayList<>();
+
+		Set<EEdge> unselectedAEdges = aEdges.values().stream().flatMap(List::stream)
+				.collect(Collectors.toCollection(HashSet::new));
+		Set<EEdge> unselectedBEdges = bEdges.values().stream().flatMap(List::stream)
+				.collect(Collectors.toCollection(HashSet::new));
+
+		gurobiMappedModel.getSelectedEObjectMappings().forEach(mapping -> {
+			EObject aObject = mapping.getaObject();
+			EObject bObject = mapping.getbObject();
+			if (unselectedAObjects.remove(aObject)) {
+				EList<EAttribute> attributes = aObject.eClass().getEAllAttributes();
+				attributes.stream().filter(attr -> !Objects.equals(aObject.eGet(attr), bObject.eGet(attr)))
+						.forEach(attr -> {
+							EAttributeEdge e = EMFDeltaFactory.eINSTANCE.createEAttributeEdge();
+							e.setSource(aObject);
+							e.setType(attr.getName());
+							mismatchedAAttributes.add(e);
+						});
+				;
+			}
+			if (unselectedBObjects.remove(bObject)) {
+				EList<EAttribute> attributes = bObject.eClass().getEAllAttributes();
+				attributes.stream().filter(attr -> !Objects.equals(aObject.eGet(attr), bObject.eGet(attr)))
+						.forEach(attr -> {
+							EAttributeEdge e = EMFDeltaFactory.eINSTANCE.createEAttributeEdge();
+							e.setSource(bObject);
+							e.setType(attr.getName());
+							mismatchedBAttributes.add(e);
+						});
+				;
+			}
+
+		});
+
+		gurobiMappedModel.getSelectedEEdgeMappings().forEach(mapping -> {
+			unselectedAEdges.remove(mapping.getaObject());
+			unselectedBEdges.remove(mapping.getbObject());
+		});
+
+		Delta aDelta = EMFDeltaFactory.eINSTANCE.createDelta();
+		aDelta.getObjects().addAll(unselectedAObjects);
+		aDelta.getAttributes().addAll(mismatchedAAttributes);
+		aDelta.getEdges().addAll(unselectedAEdges.stream().map(EEdge::toDeltaEdge).collect(Collectors.toList()));
+		System.out.println("ADelta: " + unselectedAObjects.size() + " objects, " + mismatchedAAttributes.size()
+				+ " attributes, " + unselectedAEdges.size() + " edges");
+
+		Delta bDelta = EMFDeltaFactory.eINSTANCE.createDelta();
+		bDelta.getObjects().addAll(unselectedBObjects);
+		bDelta.getAttributes().addAll(mismatchedBAttributes);
+		bDelta.getEdges().addAll(unselectedBEdges.stream().map(EEdge::toDeltaEdge).collect(Collectors.toList()));
+		System.out.println("BDelta: " + unselectedBObjects.size() + " objects, " + mismatchedBAttributes.size()
+		+ " attributes, " + unselectedBEdges.size() + " edges");
+
+		aPath.getContents().add(aDelta);
+		bPath.getContents().add(bDelta);
 	}
 
 	private synchronized void extractElements() {
