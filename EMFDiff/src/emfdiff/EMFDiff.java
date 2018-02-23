@@ -47,7 +47,7 @@ public class EMFDiff {
 
 		ResourceSet rs = new ResourceSetImpl();
 		Resource r1 = rs.getResource(URI.createFileURI(new File("instances/UML.xmi").getAbsolutePath()), true);
-		Resource r2 = rs.getResource(URI.createFileURI(new File("instances/UML2.xmi").getAbsolutePath()), true);
+		Resource r2 = rs.getResource(URI.createFileURI(new File("instances/UML.xmi").getAbsolutePath()), true);
 
 		EObject o = r1.getContents().get(0);
 		EObject o2 = r2.getContents().get(0);
@@ -82,10 +82,13 @@ public class EMFDiff {
 		this.bRoot = bRoot;
 	}
 
+	private int constrCounter = 0;
+	private int varCounter = 0;
+	
 	public GurobiMappedModel createGurobiModel() throws GRBException {
 		extractElements();
-		System.out.println(aObjects);
-		System.out.println(aEdges);
+		System.out.println("found " + aObjects.values().stream().flatMap(List::stream).count() + " objects and " + aEdges.values().stream().flatMap(List::stream).count() + " edges in model A");
+		System.out.println("found " + bObjects.values().stream().flatMap(List::stream).count() + " objects and " + bEdges.values().stream().flatMap(List::stream).count() + " edges in model B");
 
 		Map<EObject, List<GRBVar>> BOtoVars = new HashMap<>();
 		Map<EEdge, List<GRBVar>> BEtoVars = new HashMap<>();
@@ -94,50 +97,38 @@ public class EMFDiff {
 		Map<GRBVar, GurobiVariableMapping<EObject>> objectVars = new HashMap<>();
 		Map<GRBVar, GurobiVariableMapping<EEdge>> edgeVars = new HashMap<>();
 
-		int varCounter = 0;
-		int constrCounter = 0;
-
 		GRBEnv env = new GRBEnv("Gurobi_ILP.log");
 		GRBModel model = new GRBModel(env);
 
 		GRBLinExpr objective = new GRBLinExpr();
+		
+		generateFwdObjectConstraints(BOtoVars, ABtoVar, objectVars, model, objective);
+		generateBedObjectConstraints(BOtoVars, model);
+		generateFwdEdgeConstraints(BEtoVars, ABtoVar, edgeVars, model, objective);
+		generateBwdEdgeConstraints(BEtoVars, model);
+		
+		System.out.println("gurobi model generated successfully");
+		model.setObjective(objective, GRB.MAXIMIZE);
 
-		for (Entry<EClass, List<EObject>> es : aObjects.entrySet()) {
-			List<EObject> bVals = bObjects.get(es.getKey());
-			if (bVals == null)
-				continue;
-			List<EObject> aVals = es.getValue();
-			for (EObject aObj : aVals) {
-				GRBLinExpr expr = new GRBLinExpr();
-				Map<EObject, GRBVar> aVars = new HashMap<>();
-				ABtoVar.put(aObj, aVars);
-				EList<EAttribute> attributes = aObj.eClass().getEAllAttributes();
-				for (EObject bObj : bVals) {
-					if (aObj.eClass() != bObj.eClass())
-						continue;
+		gurobiMappedModel = new GurobiMappedModel(model, objectVars, edgeVars);
+		return gurobiMappedModel;
+	}
 
-					long weight = attributes.stream().filter(attr -> Objects.equals(aObj.eGet(attr), bObj.eGet(attr)))
-							.count() + 1;
-
-					GRBVar var = model.addVar(0.0, 1.0, 0.0, GRB.BINARY, "obj" + ++varCounter);
-					aVars.put(bObj, var);
-					BOtoVars.computeIfAbsent(bObj, e -> new ArrayList<>()).add(var);
-
-					objective.addTerm(weight, var);
-					expr.addTerm(1, var);
-					objectVars.put(var, new GurobiVariableMapping<EObject>(var, aObj, bObj));
-				}
-				model.addConstr(expr, GRB.LESS_EQUAL, 1.0, "varMap" + ++constrCounter);
-			}
-		}
-		for (List<GRBVar> vars : BOtoVars.values()) {
+	private void generateBwdEdgeConstraints(Map<EEdge, List<GRBVar>> BEtoVars, GRBModel model) throws GRBException {
+		System.out.println("generating edge constraints (2/2)");
+		for (List<GRBVar> vars : BEtoVars.values()) {
 			GRBLinExpr expr = new GRBLinExpr();
 			for (GRBVar var : vars) {
 				expr.addTerm(1, var);
 			}
-			model.addConstr(expr, GRB.LESS_EQUAL, 1.0, "varMapB" + ++constrCounter);
+			model.addConstr(expr, GRB.LESS_EQUAL, 1.0, "edgeMapB" + ++constrCounter);
 		}
+	}
 
+	private void generateFwdEdgeConstraints(Map<EEdge, List<GRBVar>> BEtoVars, Map<EObject, Map<EObject, GRBVar>> ABtoVar,
+			Map<GRBVar, GurobiVariableMapping<EEdge>> edgeVars, GRBModel model, GRBLinExpr objective)
+			throws GRBException {
+		System.out.println("generating edge constraints (1/2)");
 		for (Entry<EStructuralFeature, List<EEdge>> es : aEdges.entrySet()) {
 			List<EEdge> bEdgs = bEdges.get(es.getKey());
 			if (bEdgs == null)
@@ -171,18 +162,51 @@ public class EMFDiff {
 				model.addConstr(expr, GRB.LESS_EQUAL, 1.0, "edgeMap" + ++constrCounter);
 			}
 		}
-		for (List<GRBVar> vars : BEtoVars.values()) {
+	}
+
+	private void generateBedObjectConstraints(Map<EObject, List<GRBVar>> BOtoVars, GRBModel model) throws GRBException {
+		System.out.println("generating object constraints (2/2)");
+		for (List<GRBVar> vars : BOtoVars.values()) {
 			GRBLinExpr expr = new GRBLinExpr();
 			for (GRBVar var : vars) {
 				expr.addTerm(1, var);
 			}
-			model.addConstr(expr, GRB.LESS_EQUAL, 1.0, "edgeMapB" + ++constrCounter);
+			model.addConstr(expr, GRB.LESS_EQUAL, 1.0, "varMapB" + ++constrCounter);
 		}
+	}
 
-		model.setObjective(objective, GRB.MAXIMIZE);
+	private void generateFwdObjectConstraints(Map<EObject, List<GRBVar>> BOtoVars, Map<EObject, Map<EObject, GRBVar>> ABtoVar,
+			Map<GRBVar, GurobiVariableMapping<EObject>> objectVars, GRBModel model, GRBLinExpr objective)
+			throws GRBException {
+		System.out.println("generating object constraints (1/2)");
+		for (Entry<EClass, List<EObject>> es : aObjects.entrySet()) {
+			List<EObject> bVals = bObjects.get(es.getKey());
+			if (bVals == null)
+				continue;
+			List<EObject> aVals = es.getValue();
+			for (EObject aObj : aVals) {
+				GRBLinExpr expr = new GRBLinExpr();
+				Map<EObject, GRBVar> aVars = new HashMap<>();
+				ABtoVar.put(aObj, aVars);
+				EList<EAttribute> attributes = aObj.eClass().getEAllAttributes();
+				for (EObject bObj : bVals) {
+					if (aObj.eClass() != bObj.eClass())
+						continue;
 
-		gurobiMappedModel = new GurobiMappedModel(model, objectVars, edgeVars);
-		return gurobiMappedModel;
+					long weight = attributes.stream().filter(attr -> Objects.equals(aObj.eGet(attr), bObj.eGet(attr)))
+							.count() + 1;
+
+					GRBVar var = model.addVar(0.0, 1.0, 0.0, GRB.BINARY, "obj" + ++varCounter);
+					aVars.put(bObj, var);
+					BOtoVars.computeIfAbsent(bObj, e -> new ArrayList<>()).add(var);
+
+					objective.addTerm(weight, var);
+					expr.addTerm(1, var);
+					objectVars.put(var, new GurobiVariableMapping<EObject>(var, aObj, bObj));
+				}
+				model.addConstr(expr, GRB.LESS_EQUAL, 1.0, "varMap" + ++constrCounter);
+			}
+		}
 	}
 
 	public void generateDeltas(Resource aPath, Resource bPath) {
@@ -244,7 +268,7 @@ public class EMFDiff {
 		bDelta.getAttributes().addAll(mismatchedBAttributes);
 		bDelta.getEdges().addAll(unselectedBEdges.stream().map(EEdge::toDeltaEdge).collect(Collectors.toList()));
 		System.out.println("BDelta: " + unselectedBObjects.size() + " objects, " + mismatchedBAttributes.size()
-		+ " attributes, " + unselectedBEdges.size() + " edges");
+				+ " attributes, " + unselectedBEdges.size() + " edges");
 
 		aPath.getContents().add(aDelta);
 		bPath.getContents().add(bDelta);
