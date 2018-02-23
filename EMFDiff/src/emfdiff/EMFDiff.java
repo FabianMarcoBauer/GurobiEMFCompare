@@ -27,9 +27,11 @@ import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.eclipse.uml2.uml.UMLPackage;
 
+import ArtificialSource.SourceContainer;
 import eMFDelta.Delta;
 import eMFDelta.EAttributeEdge;
 import eMFDelta.EMFDeltaFactory;
+import eMFDelta.EMFDeltaPackage;
 import gurobi.GRB;
 import gurobi.GRBEnv;
 import gurobi.GRBException;
@@ -38,31 +40,6 @@ import gurobi.GRBModel;
 import gurobi.GRBVar;
 
 public class EMFDiff {
-
-	public static void main(String[] args) throws GRBException, IOException {
-		Resource.Factory.Registry reg = Resource.Factory.Registry.INSTANCE;
-		Map<String, Object> m = reg.getExtensionToFactoryMap();
-		m.put("xmi", new XMIResourceFactoryImpl());
-		UMLPackage.eINSTANCE.getName();
-
-		ResourceSet rs = new ResourceSetImpl();
-		Resource r1 = rs.getResource(URI.createFileURI(new File("instances/UML.xmi").getAbsolutePath()), true);
-		Resource r2 = rs.getResource(URI.createFileURI(new File("instances/UML.xmi").getAbsolutePath()), true);
-
-		EObject o = r1.getContents().get(0);
-		EObject o2 = r2.getContents().get(0);
-
-		EMFDiff emfDiff = new EMFDiff(o, o2);
-		GurobiMappedModel optimizedModel = emfDiff.createGurobiModel().optimize();
-		List<Object> selectedMappings = optimizedModel.getSelectedMappings();
-		selectedMappings.stream().map(NameUtil::getNameString).sorted().forEach(System.out::println);
-
-		Resource d1 = rs.createResource(URI.createFileURI(new File("instances/delta1.xmi").getAbsolutePath()));
-		Resource d2 = rs.createResource(URI.createFileURI(new File("instances/delta2.xmi").getAbsolutePath()));
-		emfDiff.generateDeltas(d1, d2);
-		d1.save(null);
-		d2.save(null);
-	}
 
 	private EObject aRoot;
 	private EObject bRoot;
@@ -84,11 +61,13 @@ public class EMFDiff {
 
 	private int constrCounter = 0;
 	private int varCounter = 0;
-	
-	public GurobiMappedModel createGurobiModel() throws GRBException {
+
+	public GurobiMappedModel createGurobiModel() {
 		extractElements();
-		System.out.println("found " + aObjects.values().stream().flatMap(List::stream).count() + " objects and " + aEdges.values().stream().flatMap(List::stream).count() + " edges in model A");
-		System.out.println("found " + bObjects.values().stream().flatMap(List::stream).count() + " objects and " + bEdges.values().stream().flatMap(List::stream).count() + " edges in model B");
+		System.out.println("found " + aObjects.values().stream().flatMap(List::stream).count() + " objects and "
+				+ aEdges.values().stream().flatMap(List::stream).count() + " edges in model A");
+		System.out.println("found " + bObjects.values().stream().flatMap(List::stream).count() + " objects and "
+				+ bEdges.values().stream().flatMap(List::stream).count() + " edges in model B");
 
 		Map<EObject, List<GRBVar>> BOtoVars = new HashMap<>();
 		Map<EEdge, List<GRBVar>> BEtoVars = new HashMap<>();
@@ -96,22 +75,25 @@ public class EMFDiff {
 
 		Map<GRBVar, GurobiVariableMapping<EObject>> objectVars = new HashMap<>();
 		Map<GRBVar, GurobiVariableMapping<EEdge>> edgeVars = new HashMap<>();
+		try {
+			GRBEnv env = new GRBEnv("Gurobi_ILP.log");
+			GRBModel model = new GRBModel(env);
 
-		GRBEnv env = new GRBEnv("Gurobi_ILP.log");
-		GRBModel model = new GRBModel(env);
+			GRBLinExpr objective = new GRBLinExpr();
 
-		GRBLinExpr objective = new GRBLinExpr();
-		
-		generateFwdObjectConstraints(BOtoVars, ABtoVar, objectVars, model, objective);
-		generateBedObjectConstraints(BOtoVars, model);
-		generateFwdEdgeConstraints(BEtoVars, ABtoVar, edgeVars, model, objective);
-		generateBwdEdgeConstraints(BEtoVars, model);
-		
-		System.out.println("gurobi model generated successfully");
-		model.setObjective(objective, GRB.MAXIMIZE);
+			generateFwdObjectConstraints(BOtoVars, ABtoVar, objectVars, model, objective);
+			generateBedObjectConstraints(BOtoVars, model);
+			generateFwdEdgeConstraints(BEtoVars, ABtoVar, edgeVars, model, objective);
+			generateBwdEdgeConstraints(BEtoVars, model);
 
-		gurobiMappedModel = new GurobiMappedModel(model, objectVars, edgeVars);
-		return gurobiMappedModel;
+			System.out.println("gurobi model generated successfully");
+			model.setObjective(objective, GRB.MAXIMIZE);
+
+			gurobiMappedModel = new GurobiMappedModel(model, objectVars, edgeVars);
+			return gurobiMappedModel;
+		} catch (GRBException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	private void generateBwdEdgeConstraints(Map<EEdge, List<GRBVar>> BEtoVars, GRBModel model) throws GRBException {
@@ -125,9 +107,9 @@ public class EMFDiff {
 		}
 	}
 
-	private void generateFwdEdgeConstraints(Map<EEdge, List<GRBVar>> BEtoVars, Map<EObject, Map<EObject, GRBVar>> ABtoVar,
-			Map<GRBVar, GurobiVariableMapping<EEdge>> edgeVars, GRBModel model, GRBLinExpr objective)
-			throws GRBException {
+	private void generateFwdEdgeConstraints(Map<EEdge, List<GRBVar>> BEtoVars,
+			Map<EObject, Map<EObject, GRBVar>> ABtoVar, Map<GRBVar, GurobiVariableMapping<EEdge>> edgeVars,
+			GRBModel model, GRBLinExpr objective) throws GRBException {
 		System.out.println("generating edge constraints (1/2)");
 		for (Entry<EStructuralFeature, List<EEdge>> es : aEdges.entrySet()) {
 			List<EEdge> bEdgs = bEdges.get(es.getKey());
@@ -175,9 +157,9 @@ public class EMFDiff {
 		}
 	}
 
-	private void generateFwdObjectConstraints(Map<EObject, List<GRBVar>> BOtoVars, Map<EObject, Map<EObject, GRBVar>> ABtoVar,
-			Map<GRBVar, GurobiVariableMapping<EObject>> objectVars, GRBModel model, GRBLinExpr objective)
-			throws GRBException {
+	private void generateFwdObjectConstraints(Map<EObject, List<GRBVar>> BOtoVars,
+			Map<EObject, Map<EObject, GRBVar>> ABtoVar, Map<GRBVar, GurobiVariableMapping<EObject>> objectVars,
+			GRBModel model, GRBLinExpr objective) throws GRBException {
 		System.out.println("generating object constraints (1/2)");
 		for (Entry<EClass, List<EObject>> es : aObjects.entrySet()) {
 			List<EObject> bVals = bObjects.get(es.getKey());
@@ -289,22 +271,28 @@ public class EMFDiff {
 			Map<EStructuralFeature, List<EEdge>> edges) {
 		TreeIterator<Object> allContents = EcoreUtil.getAllContents(root, true);
 		allContents.forEachRemaining(o -> {
-			if (!(o instanceof EObject))
-				return;
-			EObject eo = (EObject) o;
-			objects.computeIfAbsent(eo.eClass(), c -> new ArrayList<>()).add(eo);
-			eo.eClass().getEAllStructuralFeatures().stream().filter(sf -> true).<EEdge>flatMap(sf -> {
-				Object e = eo.eGet(sf);
-				if (!(e instanceof EObject))
-					return Stream.<EEdge>empty();
-				if (e instanceof EList)
-					return ((EList<?>) e).stream().filter(e2 -> e2 instanceof EObject)
-							.<EEdge>map(e2 -> new EEdge(eo, sf, (EObject) e2));
-				else
-					return Stream.<EEdge>of(new EEdge(eo, sf, (EObject) e));
-			}).forEach(e -> edges.computeIfAbsent(e.type, e2 -> new ArrayList<>()).add(e));
+			processElement(objects, edges, o);
 		});
 
-		objects.computeIfAbsent(root.eClass(), c -> new ArrayList<>()).add(root);
+		processElement(objects, edges, root);
+		System.out.println(edges.entrySet().stream().map(e -> e.getKey().getName() + "::" + e.getValue().size()).collect(Collectors.toList()));
+	}
+
+	private void processElement(Map<EClass, List<EObject>> objects, Map<EStructuralFeature, List<EEdge>> edges, Object o) {
+		if (!(o instanceof EObject))
+			return;
+		EObject eo = (EObject) o;
+		objects.computeIfAbsent(eo.eClass(), c -> new ArrayList<>()).add(eo);
+		eo.eClass().getEAllStructuralFeatures().stream().<EEdge>flatMap(sf -> {
+			Object e = eo.eGet(sf);
+			if (e instanceof EList) {
+				return ((EList<?>) e).stream().filter(e2 -> e2 instanceof EObject)
+						.<EEdge>map(e2 -> new EEdge(eo, sf, (EObject) e2));
+			} else if (e instanceof EObject) {
+				return Stream.<EEdge>of(new EEdge(eo, sf, (EObject) e));
+			} else {
+				return Stream.<EEdge>empty();
+			}
+		}).forEach(e -> edges.computeIfAbsent(e.type, e2 -> new ArrayList<>()).add(e));
 	}
 }

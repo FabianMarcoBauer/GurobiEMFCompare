@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="ASCII"?>
+<ArtificialSource:SourceContainer xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:ArtificialSource="platform:/plugin/ArtificialSource/model/ArtificialSource.ecore" name="augue">
+  <entries id="864" higherGroupMembers="//@entries.1 //@entries.2 //@entries.3 //@entries.4"/>
+  <entries id="397" higherGroupMembers="//@entries.2 //@entries.3 //@entries.4"/>
+  <entries id="179" higherGroupMembers="//@entries.3 //@entries.4"/>
+  <entries id="730" higherGroupMembers="//@entries.4"/>
+  <entries id="292"/>
+  <entries id="483" higherGroupMembers="//@entries.6 //@entries.7 //@entries.8 //@entries.9"/>
+  <entries id="886" higherGroupMembers="//@entries.7 //@entries.8 //@entries.9"/>
+  <entries id="353" higherGroupMembers="//@entries.8 //@entries.9"/>
+  <entries id="851" higherGroupMembers="//@entries.9"/>
+  <entries id="680"/>
+  <entries id="453" higherGroupMembers="//@entries.11 //@entries.12 //@entries.13 //@entries.14"/>
+  <entries id="402" higherGroupMembers="//@entries.12 //@entries.13 //@entries.14"/>
+  <entries id="290" higherGroupMembers="//@entries.13 //@entries.14"/>
+  <entries id="21" higherGroupMembers="//@entries.14"/>
+  <entries id="975"/>
+  <entries id="139" higherGroupMembers="//@entries.16 //@entries.17 //@entries.18 //@entries.19"/>
+  <entries id="763" higherGroupMembers="//@entries.17 //@entries.18 //@entries.19"/>
+  <entries id="901" higherGroupMembers="//@entries.18 //@entries.19"/>
+  <entries id="11" higherGroupMembers="//@entries.19"/>
+  <entries id="889"/>
+  <entries id="503" higherGroupMembers="//@entries.21 //@entries.22 //@entries.23 //@entries.24"/>
+  <entries id="344" higherGroupMembers="//@entries.22 //@entries.23 //@entries.24"/>
+  <entries id="860" higherGroupMembers="//@entries.23 //@entries.24"/>
+  <entries id="7" higherGroupMembers="//@entries.24"/>
+  <entries id="807"/>
+</ArtificialSource:SourceContainer>

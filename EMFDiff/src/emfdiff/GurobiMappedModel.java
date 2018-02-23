@@ -40,24 +40,27 @@ public class GurobiMappedModel {
 		return edgeMappings;
 	}
 
-	public GurobiMappedModel optimize() throws GRBException {
-		model.optimize();
-		return this;
+	public GurobiMappedModel optimize() {
+		try {
+			model.optimize();
+			return this;
+		} catch (GRBException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	public List<GurobiVariableMapping<EObject>> getSelectedEObjectMappings() {
 		return objectMappings.entrySet().stream().filter(selected()).map(Entry::getValue).collect(Collectors.toList());
 	}
-	
 
 	public List<GurobiVariableMapping<EEdge>> getSelectedEEdgeMappings() {
 		return edgeMappings.entrySet().stream().filter(selected()).map(Entry::getValue).collect(Collectors.toList());
 	}
-	
-	public <T> List<T> getSelectedContents(Function<? super GurobiVariableMapping<? extends Object>, T> mapper) {
-		return Stream.concat(objectMappings.entrySet().stream(), edgeMappings.entrySet().stream()).filter(selected()).map(Entry::getValue).map(mapper).collect(Collectors.toList());
-	}
 
+	public <T> List<T> getSelectedContents(Function<? super GurobiVariableMapping<? extends Object>, T> mapper) {
+		return Stream.concat(objectMappings.entrySet().stream(), edgeMappings.entrySet().stream()).filter(selected())
+				.map(Entry::getValue).map(mapper).collect(Collectors.toList());
+	}
 
 	public List<Object> getSelectedMappings() {
 		return getSelectedContents(e -> e);
@@ -70,7 +73,6 @@ public class GurobiMappedModel {
 	public List<Object> getSelectedBContents() {
 		return getSelectedContents(GurobiVariableMapping::getbObject);
 	}
-	
 
 	private Predicate<? super Entry<GRBVar, ? extends GurobiVariableMapping<? extends Object>>> selected() {
 		return e -> {
